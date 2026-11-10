@@ -49,7 +49,7 @@ TYPE_PATTERNS = [
 
 def parse_weeks(text):
     """Return (list of week numbers or None, parity 'odd'/'even'/None)."""
-    t = text.lower().replace("–", "-").replace("—", "-")
+    t = re.sub(r"-+", "-", text.lower().replace("–", "-").replace("—", "-"))
     weeks = set()
     # sequences like "1-3 нед. 10-18нед", "2 -17 нед", "11 нед", "3-14 нед (1-8 нед в ...)"
     for m in re.finditer(r"((?:\d{1,2}\s*(?:-\s*\d{1,2})?\s*[,и]?\s*)+)-?\s*н(?:ед|\.|/)", t):
@@ -76,41 +76,120 @@ def parse_weeks(text):
     return (sorted(weeks) or None), parity
 
 
-def parse_lesson(text):
-    first = text.split("\n")[0]
-    rest = text.replace("\n", " ")
-    low = first.lower()
-    kind = None
+def detect_type(line):
+    low = line.lower()
+    if "лекц" in low and "практ" in low:
+        return "mixed"
     for k, pat in TYPE_PATTERNS:
         if re.search(pat, low):
-            kind = k
-            break
-    if "лекц" in low and "практ" in low:
-        kind = "mixed"
-    subject = re.split(r"\(|\bпреп\.?|\s\d{1,2}\s*-\s*\d|\s\d{1,2}\s*нед", first, maxsplit=1)[0]
-    subject = subject.strip(" .,-")
-    teacher = None
-    m = re.search(r"преп\.?\s*([А-ЯЁ][а-яё]+(?:\.)?\s*(?:[А-ЯЁ]\.?\s*){0,2})", rest)
-    if m:
-        teacher = re.sub(r"\s+", " ", m.group(1)).strip(" ,")
-        teacher = re.sub(r"\.(?=[А-ЯЁ])", ". ", teacher)
-    else:  # "Хузина Д. Я." without "преп"
-        m = re.search(r"([А-ЯЁ][а-яё]+\s+[А-ЯЁ]\.\s*[А-ЯЁ]\.)", first)
-        if m:
-            teacher = re.sub(r"\s+", " ", m.group(1)).strip()
-    room = None
-    m = re.search(r"ауд\.?\s*(\d[\dА-Яа-я/\-]*)", rest, re.I)
-    if m:
-        room = m.group(1)
-    weeks, parity = parse_weeks(text)
-    return {
-        "subject": subject or first,
-        "type": kind,
-        "teacher": teacher,
-        "room": room,
-        "weeks": weeks,
-        "parity": parity,
-    }
+            return k
+    return None
+
+
+def find_teacher(line):
+    m = re.search(r"преп\.?\s*(?:преп\.?\s*)?([А-ЯЁ][а-яё]+(?:\.)?\s*(?:[А-ЯЁ]\.?\s*){0,2})", line)
+    if not m:  # "Хузина Д. Я." without "преп"
+        m = re.search(r"([А-ЯЁ][а-яё]+\s+[А-ЯЁ]\.\s*[А-ЯЁ]\.?)", line)
+    if not m:
+        return None
+    t = re.sub(r"\s+", " ", m.group(1)).strip(" ,")
+    return re.sub(r"\.(?=[А-ЯЁ])", ". ", t)
+
+
+def find_room(line):
+    m = re.search(r"ауд\.?\s*(\d[\dА-Яа-я/\-]*)", line, re.I) or re.search(r"(\d{3}[а-я]?)\s*ауд", line, re.I)
+    return m.group(1) if m else None
+
+
+def find_place(line):
+    m = re.search(r"(СЦ\s*\([^)]*\)|СК\s*«[^»]+»(?:\s*проезд[^,]*,\s*\d+)?|(?:ул\.\s*)?Кремл[её]вская\s*\d+\s*[аА]?)", line)
+    return re.sub(r"\s+", " ", m.group(1)).strip() if m else None
+
+
+GROUP_PREFIX = re.compile(
+    r"^\s*(?:у\s+)?((?:(?:гр\.?\s*)?(?:16-)?\d{3}\s*(?:гр\.?)?\s*,?\s*)+)(?=\D)", re.I)
+
+
+def split_group_prefix(line):
+    """'у гр 16-631 17 нед ...' -> (['631'], '17 нед ...'). Only when the line starts with у/гр."""
+    if not re.match(r"^\s*(у\s|гр\s*\.?\s*\d)", line, re.I):
+        return None, line
+    m = GROUP_PREFIX.match(line)
+    if not m:
+        return None, line
+    nums = re.findall(r"\d{3}", m.group(1))
+    return nums, line[m.end():].strip()
+
+
+def subject_of(line):
+    subj = re.split(r"\(|\bпреп\.?|\s\d{1,2}\s*-+\s*\d|\s\d{1,2}\s*нед|\s[сc]\s*\d|недпреп|\sСК\s*«|\sлекци[яи]\s"
+                    r"|\s[А-ЯЁ][а-яё]+\s+[А-ЯЁ]\.\s*[А-ЯЁ]", line, maxsplit=1)[0]
+    subj = re.sub(r"\s+(лекци[яи]|практика|лаб\w*)$", "", subj.strip(" .,-"), flags=re.I)
+    return subj.strip(" .,-")
+
+
+LEAD_JUNK = re.compile(
+    r"^(?:\s*(?:\((?:лекци\w*|практик\w*|лаб\w*)[^)]*\)|лекци\w*|практик\w*|лаб\w*\.?|семинар\w*|"
+    r"[сc]\s*(?=\d)|\d{1,2}(?:\s*-+\s*\d{1,2})?\s*(?:нед\.?|н\.)?|[,.])\s*)+", re.I)
+
+
+def own_subject(body):
+    """Subject named in this line, or None if the line only adds weeks/type/room to the previous one."""
+    rest = LEAD_JUNK.sub("", body).strip()
+    if not re.match(r"^[А-ЯЁA-Z]", rest):
+        return None
+    if re.match(r"^(СЦ|СК|Кремл|Ауд)", rest) or re.match(r"^[А-ЯЁ][а-яё]+\s+[А-ЯЁ]\.", rest):
+        return None
+    return subject_of(rest) or None
+
+
+def is_continuation(line):
+    return own_subject(line) is None
+
+
+def parse_cell(text):
+    """Split a cell into separate lessons. Returns list of dicts with optional 'only' (group numbers)."""
+    lines = [l.strip(" !") for l in text.split("\n") if l.strip(" !")]
+    parts = []
+    header = None  # subject-only line like "Безопасность жизнедеятельности"
+    for i, line in enumerate(lines):
+        only, body = split_group_prefix(line)
+        weeks, parity = parse_weeks(body)
+        prev = parts[-1] if parts else None
+        cont = is_continuation(body)
+        nxt_cont = i + 1 < len(lines) and is_continuation(split_group_prefix(lines[i + 1])[1])
+        if not cont and weeks is None and nxt_cont and not only and len(lines) > 1:
+            header = {"subject": subject_of(body), "type": detect_type(body), "teacher": find_teacher(body)}
+            continue
+        base = prev if (cont and prev) else (header if cont and header else None)
+        part = {
+            "subject": own_subject(body) if not cont else (base["subject"] if base else subject_of(body) or body),
+            "type": detect_type(body) or (base["type"] if base else None),
+            "teacher": find_teacher(body) or (base["teacher"] if base else None),
+            "room": find_room(body),
+            "place": find_place(body),
+            "weeks": weeks,
+            "parity": parity,
+            "line": line,
+        }
+        if cont and base and part["room"] is None and part["place"] is None:
+            part["room"], part["place"] = base.get("room"), base.get("place")
+        if only:
+            part["only"] = only
+        elif cont and prev and prev.get("only"):
+            part["only"] = prev["only"]
+        # a bare "17-18 нед" line just adds weeks to the previous lesson
+        if cont and prev and re.fullmatch(r"[\d\s\-,.]*нед\.?", body) and weeks:
+            prev["weeks"] = sorted(set(prev["weeks"] or []) | set(weeks))
+            prev["line"] += "\n" + line
+            continue
+        if not part["subject"]:
+            part["subject"] = body
+        parts.append(part)
+    if not parts and header:
+        parts.append(dict(header, room=None, place=None, weeks=None, parity=None, line=text))
+    parts.sort(key=lambda p: (p["weeks"] or [0])[0])
+    return parts
 
 
 # ---------- sheet parsing ----------
@@ -119,7 +198,7 @@ def parse_sheet(name, gid):
     grid = parse_grid(get(f"{BASE}/htmlview/sheet?headers=false&gid={gid}"))
     title = ""
     groups, lessons_by_group = [], {}
-    days = {}  # day index -> {time -> {group: entry}}
+    days = {}  # day index -> {time -> {group: [entries]}}
     times_by_day = {}
 
     for hr, row in enumerate(grid):
@@ -164,11 +243,19 @@ def parse_sheet(name, gid):
                     text = cell["text"].strip()
                     if not text:
                         continue
-                    shared = [col_to_group[x] for x in range(cell["c0"], cell["c0"] + cell["cs"]) if x in col_to_group]
-                    entry = {"text": text, **parse_lesson(text)}
-                    if len(shared) > 1:
-                        entry["shared"] = shared
-                    slot[code] = entry
+                    span = [col_to_group[x] for x in range(cell["c0"], cell["c0"] + cell["cs"]) if x in col_to_group]
+                    entries = []
+                    for part in parse_cell(text):
+                        only = part.pop("only", None)
+                        applies = [g for g in span if not only or g[-3:] in only]
+                        if code not in applies:
+                            continue
+                        entry = {"text": text, **part}
+                        if len(applies) > 1:
+                            entry["shared"] = applies
+                        entries.append(entry)
+                    if entries:
+                        slot[code] = entries
         break  # all blocks of a sheet share one header row
 
     out_days = []

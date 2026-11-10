@@ -198,6 +198,8 @@ table.stream td.t span { display: block; font-weight: 500; }
 .cell .m { color: var(--muted); font-size: 12px; }
 .cell.off { opacity: .4; box-shadow: none; background: transparent; outline: 1px dashed var(--line); }
 .cell.mine { outline: 2px solid var(--accent); }
+.stack { display: flex; flex-direction: column; gap: 6px; height: 100%; }
+.stack .cell { height: auto; flex: 1; }
 .cell.empty-cell { background: transparent; box-shadow: none; min-height: 40px; }
 .cell.empty-cell::before { display: none; }
 
@@ -332,7 +334,8 @@ footer a { color: inherit; }
   function lessonsFor(c, groupId, dayIdx) {
     const day = c.days.find((d) => d.day === dayIdx);
     if (!day) return [];
-    return day.slots.map((s, i) => ({ time: s.time, n: i + 1, l: s.lessons[groupId] })).filter((x) => x.l);
+    // one cell may hold several lessons that run on different weeks
+    return day.slots.flatMap((s, i) => (s.lessons[groupId] || []).map((l) => ({ time: s.time, n: i + 1, l })));
   }
 
   // ---- render ----
@@ -422,6 +425,7 @@ footer a { color: inherit; }
     const tags = [];
     if (l.type) tags.push(`<span class="tag type">${TYPE_NAMES[l.type]}</span>`);
     if (l.room) tags.push(`<span class="tag">${ICON.room}ауд. ${esc(l.room)}</span>`);
+    if (l.place) tags.push(`<span class="tag">${ICON.room}${esc(l.place)}</span>`);
     if (l.teacher) tags.push(`<span class="tag">${ICON.teacher}${esc(l.teacher)}</span>`);
     const wl = weeksLabel(l);
     if (wl) tags.push(`<span class="tag">${ICON.weeks}${esc(wl)}</span>`);
@@ -487,18 +491,21 @@ footer a { color: inherit; }
     day.slots.forEach((s, si) => {
       const row = [];
       let filled = false;
+      const vis = (g) => (s.lessons[g.id] || []).filter((l) => matchesQuery(l) && (!state.onlyThisWeek || occursInWeek(l, w)));
+      const key = (ls) => JSON.stringify(ls.map((l) => [l.line, l.weeks]));
       for (let gi = 0; gi < groups.length; gi++) {
-        const l = s.lessons[groups[gi].id];
-        const show = l && matchesQuery(l) && (!state.onlyThisWeek || occursInWeek(l, w));
-        if (!show) { row.push(`<td><div class="cell empty-cell"></div></td>`); continue; }
+        const ls = vis(groups[gi]);
+        if (!ls.length) { row.push(`<td><div class="cell empty-cell"></div></td>`); continue; }
         filled = true;
-        // merge adjacent groups that share the same lesson
+        // merge adjacent groups that have exactly the same (shared) lessons
         let span = 1;
-        while (gi + span < groups.length && l.shared && l.shared.includes(groups[gi + span].id) && s.lessons[groups[gi + span].id] && s.lessons[groups[gi + span].id].text === l.text) span++;
+        while (gi + span < groups.length && ls.every((l) => l.shared && l.shared.includes(groups[gi + span].id)) && key(vis(groups[gi + span])) === key(ls)) span++;
         const mine = groups.slice(gi, gi + span).some((g) => g.id === state.group);
-        const on = occursInWeek(l, w);
-        const meta = [l.type ? TYPE_NAMES[l.type] : "", l.room ? "ауд. " + l.room : "", l.teacher || "", weeksLabel(l)].filter(Boolean).map(esc).join(" · ");
-        row.push(`<td colspan="${span}"><div class="cell ${l.type || ""} ${on ? "" : "off"} ${mine ? "mine" : ""}" title="${esc(l.text)}"><b>${esc(l.subject)}</b><div class="m">${meta}</div></div></td>`);
+        const blocks = ls.map((l) => {
+          const meta = [l.type ? TYPE_NAMES[l.type] : "", l.room ? "ауд. " + l.room : l.place || "", l.teacher || "", weeksLabel(l)].filter(Boolean).map(esc).join(" · ");
+          return `<div class="cell ${l.type || ""} ${occursInWeek(l, w) ? "" : "off"} ${mine ? "mine" : ""}" title="${esc(l.text)}"><b>${esc(l.subject)}</b><div class="m">${meta}</div></div>`;
+        }).join("");
+        row.push(`<td colspan="${span}"><div class="stack">${blocks}</div></td>`);
         gi += span - 1;
       }
       if (!filled) return;
