@@ -190,7 +190,7 @@ table.stream td.t { font-size: 12px; font-weight: 700; color: var(--muted); whit
 table.stream td.t span { display: block; font-weight: 500; }
 .cell {
   background: var(--surface); border-radius: 12px; padding: 9px 10px 9px 13px; box-shadow: var(--shadow); position: relative; overflow: hidden;
-  font-size: 13px; min-height: 100%; height: 100%;
+  font-size: 13px;
 }
 .cell::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--c, var(--other)); }
 .cell.lecture { --c: var(--lecture); } .cell.practice { --c: var(--practice); } .cell.lab { --c: var(--lab); } .cell.mixed { --c: var(--mixed); }
@@ -198,8 +198,8 @@ table.stream td.t span { display: block; font-weight: 500; }
 .cell .m { color: var(--muted); font-size: 12px; }
 .cell.off { opacity: .4; box-shadow: none; background: transparent; outline: 1px dashed var(--line); }
 .cell.mine { outline: 2px solid var(--accent); }
-.stack { display: flex; flex-direction: column; gap: 6px; height: 100%; }
-.stack .cell { height: auto; flex: 1; }
+.stack { display: flex; flex-direction: column; gap: 6px; }
+.stack .cell { flex: 0 0 auto; }
 .cell.empty-cell { background: transparent; box-shadow: none; min-height: 40px; }
 .cell.empty-cell::before { display: none; }
 
