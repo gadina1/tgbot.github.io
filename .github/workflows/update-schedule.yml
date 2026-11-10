@@ -1,0 +1,40 @@
+name: Обновление расписания
+
+on:
+  schedule:
+    - cron: "7 * * * *"   # каждый час
+  workflow_dispatch:       # кнопка «Run workflow» для ручного запуска
+  push:
+    branches: [main]
+    paths: ["scripts/**", ".github/workflows/update-schedule.yml"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-schedule
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Скачать и разобрать таблицу
+        run: python3 scripts/fetch_schedule.py
+      - name: Сохранить, если расписание изменилось
+        run: |
+          # Commit only when the lessons changed, not just the "checked" timestamp,
+          # so the history is not spammed with a commit every hour.
+          if git diff --quiet -I '"checked"' -- data/schedule.json; then
+            echo "Расписание не изменилось"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/schedule.json
+          git commit -m "Обновление расписания $(date -u +'%Y-%m-%d %H:%M') UTC"
+          git push
