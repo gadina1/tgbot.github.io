@@ -1,176 +1,38 @@
-# tgbot.github.io
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Игра с изображением круга</title>
-    <style>
-        body {
-            background-color: #e0e0e0; /* Очень светлый серый фон */
-            font-family: 'Arial', sans-serif;
-            text-align: center;
-            margin: 0;
-            padding: 50px 0;
-            color: #333;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        #money {
-            font-size: 36px;
-            margin: 20px 0;
-            color: #27ae60;
-            font-weight: bold;
-            padding: 20px;
-            border-radius: 10px;
-            background-color: #dcdcdc; /* Серый фон для денег */
-            border: 3px solid #8e44ad; /* Фиолетовая граница */
-            display: inline-block; /* Чтобы фон работал корректно */
-        }
-        #progress-text {
-            font-size: 20px;
-            margin: 10px 0;
-            padding: 10px;
-            border-radius: 10px;
-            background-color: #dcdcdc; /* Серый фон для прогресса */
-            border: 3px solid #8e44ad; /* Фиолетовая граница */
-            display: inline-block; /* Чтобы фон работал корректно */
-        }
-        #circle {
-            width: 100px; /* Диаметр изображения круга */
-            height: 100px;
-            background-image: url('https://www.numizmatik.ru/images/shopcoins/2000/01/640/391/1640391_r.jpg'); /* Путь к изображению круга */
-            background-size: cover; /* Заполнение элемента изображением */
-            border-radius: 50%; /* Делает элемент круглым */
-            position: relative;
-            animation: spin 0.5s linear infinite; /* Крутится быстро и плавно */
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        #earnings {
-            font-size: 24px;
-            margin-top: 10px;
-            color: #27ae60; /* Зеленый цвет для добавленных денег */
-        }
-        #withdraw-button {
-            margin-top: 20px;
-            padding: 10px 20px;
-            font-size: 18px;
-            color: white;
-            background-color: #8e44ad; /* Фиолетовый цвет кнопки */
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        #withdraw-button:hover {
-            background-color: #9b59b6; /* Цвет кнопки при наведении */
-        }
-        #warning {
-            display: none;
-            margin-top: 20px;
-            padding: 10px;
-            border: 2px solid #e74c3c; /* Красная рамка для предупреждения */
-            background-color: #f8d7da; /* Светлый красный фон */
-            color: #721c24; /* Темно-красный текст */
-            border-radius: 5px;
-        }
-        #ok-button {
-            margin-top: 10px;
-            padding: 5px 10px;
-            font-size: 16px;
-            color: white;
-            background-color: #27ae60; /* Зеленый цвет кнопки */
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        #ok-button:hover {
-            background-color: #2ecc71; /* Цвет кнопки при наведении */
-        }
-    </style>
-</head>
-<body>
-    <div id="money">Деньги: 0 руб.</div>
-    <div id="progress-text">Прогресс: 0%</div>
-    <div id="circle"></div>
-    <div id="earnings">+ 0 руб.</div>
-    <button id="withdraw-button" onclick="withdrawMoney()" disabled>Забрать деньги</button>
+# Расписание ИИРСИ КФУ
 
-    <div id="warning">
-        Внимание:<br>
-        Ожидайте завершения сессии, чтобы зафиксировать прибыль. Не закрывайте эту страницу до окончания сессии. Примерное время ожидания: 4 мин.
-        <button id="ok-button" onclick="closeWarning()">Понятно</button>
-    </div>
+Удобный сайт с расписанием, который сам подтягивает данные из
+[Google Таблицы](https://docs.google.com/spreadsheets/d/1LcYeEJxRtrv38BGrNm6XGdgtxAVlq9zSemTH3QWS_qo/edit)
+каждый час.
 
-    <script>
-        let money = 0;
-        let interval;
-        let gameDuration;
-        let elapsedTime = 0;
+**Что умеет**
 
-        function startGame() {
-            gameDuration = Math.floor(Math.random() * 6 + 5) * 60; // от 300 до 600 секунд
-            elapsedTime = 0;
-            money = 0;
-            document.getElementById('money').innerText = `Деньги: ${money} руб.`;
-            document.getElementById('progress-text').innerText = 'Прогресс: 0%';
-            document.getElementById('earnings').innerText = '+ 0 руб.';
-            document.getElementById('withdraw-button').disabled = true; // Деактивируем кнопку
-            document.getElementById('warning').style.display = 'none'; // Скрываем предупреждение
+- все курсы и магистратура, все группы потока;
+- режимы «День», «Неделя» и «Весь поток» (все группы курса в одной таблице, общие лекции объединены);
+- номер учебной недели и чётность, пары не этой недели приглушены (или скрыты переключателем);
+- подсветка текущей и следующей пары, «окна» между парами;
+- поиск по предмету, преподавателю и аудитории;
+- запоминает выбранную группу, ссылка на группу: `.../#16-601`;
+- светлая и тёмная тема, удобно с телефона.
 
-            interval = setInterval(() => {
-                elapsedTime++;
+## Как устроено
 
-                // Добавляем случайное количество денег (1 или 2) каждые 3 секунды
-                if (elapsedTime % 3 === 0) {
-                    const earnings = Math.random() < 0.5 ? 1 : 2; // 50% вероятность 1 или 2 рубля
-                    money += earnings;
-                    document.getElementById('money').innerText = `Деньги: ${money} руб.`;
-                    document.getElementById('earnings').innerText = `+ ${earnings} руб.`; // Показываем добавленные деньги
-                }
+| Файл | Что делает |
+|---|---|
+| `index.html` | сам сайт (без сборки и зависимостей) |
+| `data/schedule.json` | расписание в удобном виде |
+| `scripts/fetch_schedule.py` | скачивает таблицу и собирает `schedule.json` |
+| `.github/workflows/update-schedule.yml` | каждый час запускает скрипт и коммитит изменения |
 
-                // Обновляем прогресс
-                const progressPercent = Math.floor((elapsedTime / gameDuration) * 100);
-                document.getElementById('progress-text').innerText = `Прогресс: ${progressPercent}%`;
+## Включение (один раз)
 
-                // Проверяем, можно ли активировать кнопку "Забрать деньги"
-                if (elapsedTime >= 0) { // 4 минуты = 240 секунд
-                    document.getElementById('withdraw-button').disabled = false; // Активируем кнопку
-                }
+1. Слить ветку в `main`. GitHub запускает расписания (`schedule`) только из основной ветки.
+2. **Settings → Actions → General → Workflow permissions** → «Read and write permissions».
+3. **Settings → Pages** → Source: «Deploy from a branch», ветка `main`, папка `/ (root)`.
+4. Сайт будет по адресу `https://<логин>.github.io/tgbot.github.io/`.
 
-                // Проверяем, закончилась ли игра
-                if (elapsedTime >= gameDuration) {
-                    stopGame();
-                }
-            }, 1000);
-        }
+Обновить вручную: **Actions → «Обновление расписания» → Run workflow**.
+Локально: `python3 scripts/fetch_schedule.py` (только стандартная библиотека Python).
 
-        function stopGame() {
-            clearInterval(interval);
-            alert(`Вы закончили игру! У вас ${money} рублей.`);
-        }
-
-        function withdrawMoney() {
-            if (elapsedTime < 240) {
-                document.getElementById('warning').style.display = 'block'; // Показываем предупреждение
-            } else {
-                stopGame(); // Закрываем игру и показываем количество денег
-                alert(`Вы забрали ${money} рублей.`);
-                money = 0; // Обнуляем деньги после забирания
-                document.getElementById('money').innerText = `Деньги: ${money} руб.`;
-                document.getElementById('withdraw-button').disabled = true; // Деактивируем кнопку снова
-            }
-        }
-
-        function closeWarning() {
-            document.getElementById('warning').style.display = 'none'; // Скрываем предупреждение
-        }
-
-        // Запускаем игру автоматически
-        startGame();
-    </script>
-</body>
-</html>
+Начало семестра (для номера недели) задаётся в `scripts/fetch_schedule.py`
+(`SEMESTER_START`, понедельник первой недели).
+Таблица должна быть открыта на просмотр по ссылке.

@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Расписание ИИРСИ</title>
+<meta name="description" content="Удобное расписание занятий ИИРСИ КФУ, обновляется каждый час из Google Таблицы">
+<meta name="theme-color" content="#f6f5f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121316" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Crect x='7' y='9' width='18' height='3' rx='1.5' fill='white'/%3E%3Crect x='7' y='15' width='12' height='3' rx='1.5' fill='white'/%3E%3Crect x='7' y='21' width='15' height='3' rx='1.5' fill='white'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f6f5f2;
+  --surface: #ffffff;
+  --surface-2: #efede8;
+  --text: #17181c;
+  --muted: #6b6d75;
+  --line: #e3e1db;
+  --accent: #4f46e5;
+  --accent-soft: #e8e7fd;
+  --lecture: #2563eb;
+  --practice: #0f9d6b;
+  --lab: #e07a10;
+  --mixed: #9333ea;
+  --other: #7b7f8a;
+  --now: #e11d48;
+  --shadow: 0 1px 2px rgba(20, 20, 30, .05), 0 4px 16px rgba(20, 20, 30, .05);
+  --radius: 16px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121316;
+    --surface: #1b1c21;
+    --surface-2: #25262c;
+    --text: #ececef;
+    --muted: #9a9ca6;
+    --line: #2d2e35;
+    --accent: #8b85ff;
+    --accent-soft: #2a2850;
+    --lecture: #6aa1ff;
+    --practice: #3fd29b;
+    --lab: #ffa64d;
+    --mixed: #c38bff;
+    --other: #9a9ca6;
+    --now: #ff5c7c;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121316; --surface: #1b1c21; --surface-2: #25262c; --text: #ececef; --muted: #9a9ca6;
+  --line: #2d2e35; --accent: #8b85ff; --accent-soft: #2a2850; --lecture: #6aa1ff; --practice: #3fd29b;
+  --lab: #ffa64d; --mixed: #c38bff; --other: #9a9ca6; --now: #ff5c7c;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.45 Manrope, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  overflow-x: hidden;
+}
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+.wrap { max-width: 980px; margin: 0 auto; padding: 0 16px 64px; }
+.wrap.wide { max-width: 1400px; }
+
+/* header */
+header { padding: 22px 0 8px; display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
+h1 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -.02em; }
+.sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.sub a { color: inherit; }
+.icon-btn {
+  border: 1px solid var(--line); background: var(--surface); width: 40px; height: 40px; border-radius: 12px;
+  display: grid; place-items: center; flex: none;
+}
+.icon-btn svg { width: 18px; height: 18px; }
+
+.weekbar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 10px 0 14px;
+}
+.week-pill {
+  display: inline-flex; align-items: center; gap: 4px; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 999px; padding: 4px; box-shadow: var(--shadow);
+}
+.week-pill button { border: 0; background: transparent; width: 30px; height: 30px; border-radius: 50%; font-size: 16px; }
+.week-pill button:hover { background: var(--surface-2); }
+.week-pill b { padding: 0 6px; font-size: 14px; min-width: 128px; text-align: center; }
+.week-pill .cur { font-weight: 600; color: var(--accent); }
+.toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); user-select: none; cursor: pointer; }
+.toggle input { display: none; }
+.toggle .sw { width: 36px; height: 22px; border-radius: 99px; background: var(--line); position: relative; transition: .2s; }
+.toggle .sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: .2s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+.toggle input:checked + .sw { background: var(--accent); }
+.toggle input:checked + .sw::after { left: 17px; }
+
+/* chips / tabs */
+.label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 6px; }
+.scroller { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; margin: 0 -16px; padding-left: 16px; padding-right: 16px; }
+.scroller::-webkit-scrollbar { display: none; }
+.chip {
+  flex: none; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 7px 14px;
+  font-weight: 600; font-size: 14px; white-space: nowrap; transition: background .15s, color .15s, border-color .15s;
+}
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+.chip small { font-weight: 500; opacity: .65; margin-left: 4px; }
+
+.tabs { display: flex; background: var(--surface-2); border-radius: 12px; padding: 4px; gap: 4px; margin-top: 16px; }
+.tabs button { flex: 1; border: 0; background: transparent; padding: 9px 8px; border-radius: 9px; font-weight: 700; font-size: 14px; color: var(--muted); }
+.tabs button[aria-selected="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+
+.days { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-top: 12px; }
+.day-btn {
+  border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 7px 0 6px; text-align: center; position: relative;
+}
+.day-btn .dn { font-weight: 800; font-size: 14px; }
+.day-btn .dd { font-size: 11px; color: var(--muted); }
+.day-btn .cnt { position: absolute; top: 5px; right: 6px; font-size: 10px; font-weight: 700; color: var(--muted); }
+.day-btn.today .dn { color: var(--accent); }
+.day-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.day-btn[aria-pressed="true"] .dd, .day-btn[aria-pressed="true"] .cnt, .day-btn[aria-pressed="true"] .dn { color: #fff; }
+
+.search {
+  margin-top: 12px; display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 12px; padding: 0 12px;
+}
+.search svg { width: 16px; height: 16px; color: var(--muted); flex: none; }
+.search input { border: 0; outline: 0; background: transparent; padding: 10px 0; width: 100%; }
+
+/* lessons */
+.day-head { display: flex; align-items: baseline; justify-content: space-between; margin: 24px 0 10px; gap: 8px; }
+.day-head h2 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -.01em; }
+.day-head .meta { color: var(--muted); font-size: 13px; }
+.list { display: flex; flex-direction: column; gap: 10px; }
+.lesson {
+  display: grid; grid-template-columns: 62px 1fr; gap: 12px; background: var(--surface); border-radius: var(--radius);
+  padding: 14px 14px 14px 0; box-shadow: var(--shadow); position: relative; overflow: hidden; border: 1px solid transparent;
+}
+.lesson::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--c, var(--other)); }
+.lesson.lecture { --c: var(--lecture); }
+.lesson.practice { --c: var(--practice); }
+.lesson.lab { --c: var(--lab); }
+.lesson.mixed { --c: var(--mixed); }
+.lesson .time { text-align: right; font-variant-numeric: tabular-nums; }
+.lesson .time b { display: block; font-size: 15px; }
+.lesson .time span { font-size: 12px; color: var(--muted); }
+.lesson .time .n { display: block; font-size: 11px; color: var(--muted); margin-top: 6px; }
+.lesson h3 { margin: 0 0 6px; font-size: 16px; font-weight: 700; line-height: 1.3; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 7px; background: var(--surface-2); color: var(--muted); display: inline-flex; align-items: center; gap: 4px; }
+.tag.type { background: color-mix(in srgb, var(--c) 14%, transparent); color: var(--c); }
+.tag svg { width: 12px; height: 12px; }
+.lesson details { margin-top: 8px; }
+.lesson summary { font-size: 12px; color: var(--muted); cursor: pointer; list-style: none; }
+.lesson summary::-webkit-details-marker { display: none; }
+.lesson summary::before { content: "▸ "; }
+.lesson details[open] summary::before { content: "▾ "; }
+.lesson .raw { white-space: pre-wrap; font-size: 13px; color: var(--muted); margin-top: 6px; overflow-wrap: anywhere; }
+.lesson .raw a { color: var(--accent); }
+.lesson.off { opacity: .45; box-shadow: none; background: transparent; border: 1px dashed var(--line); }
+.lesson.now { border-color: var(--now); }
+.badge { display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
+.badge.now { color: var(--now); }
+.badge.next { color: var(--accent); }
+.badge.off { color: var(--muted); }
+.progress { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--now); }
+.break { text-align: center; font-size: 12px; color: var(--muted); padding: 0; }
+.empty {
+  text-align: center; padding: 36px 16px; color: var(--muted); background: var(--surface); border-radius: var(--radius); border: 1px dashed var(--line);
+}
+.empty .big { font-size: 34px; }
+
+/* stream (whole course) table */
+.table-wrap { overflow-x: auto; margin: 0 -16px; padding: 0 16px 8px; -webkit-overflow-scrolling: touch; }
+table.stream { border-collapse: separate; border-spacing: 6px; min-width: 100%; table-layout: fixed; margin-left: -6px; }
+table.stream th { font-size: 13px; text-align: left; padding: 4px 8px; vertical-align: bottom; position: sticky; top: 0; background: var(--bg); z-index: 1; }
+table.stream th .dir { display: block; font-weight: 500; color: var(--muted); font-size: 11px; line-height: 1.3; max-height: 2.6em; overflow: hidden; }
+table.stream th.mine { color: var(--accent); }
+table.stream td { vertical-align: top; }
+table.stream td.t { font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap; width: 54px; position: sticky; left: 0; background: var(--bg); z-index: 1; font-variant-numeric: tabular-nums; }
+table.stream td.t span { display: block; font-weight: 500; }
+.cell {
+  background: var(--surface); border-radius: 12px; padding: 9px 10px 9px 13px; box-shadow: var(--shadow); position: relative; overflow: hidden;
+  font-size: 13px; min-height: 100%; height: 100%;
+}
+.cell::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--c, var(--other)); }
+.cell.lecture { --c: var(--lecture); } .cell.practice { --c: var(--practice); } .cell.lab { --c: var(--lab); } .cell.mixed { --c: var(--mixed); }
+.cell b { display: block; font-size: 13px; line-height: 1.3; margin-bottom: 3px; }
+.cell .m { color: var(--muted); font-size: 12px; }
+.cell.off { opacity: .4; box-shadow: none; background: transparent; outline: 1px dashed var(--line); }
+.cell.mine { outline: 2px solid var(--accent); }
+.cell.empty-cell { background: transparent; box-shadow: none; min-height: 40px; }
+.cell.empty-cell::before { display: none; }
+
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 22px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+footer { margin-top: 28px; font-size: 12px; color: var(--muted); }
+footer a { color: inherit; }
+.loading { padding: 60px 0; text-align: center; color: var(--muted); }
+.err { background: color-mix(in srgb, var(--now) 12%, var(--surface)); color: var(--text); border-radius: 12px; padding: 12px 14px; margin-top: 16px; font-size: 14px; }
+
+@media (min-width: 720px) {
+  h1 { font-size: 32px; }
+  .scroller { flex-wrap: wrap; margin: 0; padding-left: 0; padding-right: 0; }
+  .lesson { grid-template-columns: 78px 1fr; padding: 16px 18px 16px 0; }
+  .lesson h3 { font-size: 17px; }
+  .week-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 20px; }
+}
+@media (min-width: 1100px) {
+  .wrap.wide .week-grid { grid-template-columns: repeat(3, 1fr); }
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap">
+  <header>
+    <div>
+      <h1>Расписание</h1>
+      <div class="sub" id="sub">Институт ИИРСИ · КФУ</div>
+    </div>
+    <button class="icon-btn" id="themeBtn" aria-label="Сменить тему" title="Сменить тему">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    </button>
+  </header>
+  <div id="app"><div class="loading">Загружаю расписание…</div></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  const DAYS_SHORT = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+  const DAYS_FULL = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
+  const MONTHS = ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+  const TYPE_NAMES = { lecture: "Лекция", practice: "Практика", lab: "Лабораторная", mixed: "Лекция + практика" };
+  const ICON = {
+    room: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>',
+    teacher: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
+    weeks: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+    group: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1-3.5 3.5-5 6.5-5s5.5 1.5 6.5 5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 15c2 .6 3.2 2.3 3.6 5"/></svg>',
+  };
+
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem("rasp:" + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem("rasp:" + k, JSON.stringify(v)); } catch (e) {} },
+  };
+
+  // theme
+  const root = document.documentElement;
+  const savedTheme = store.get("theme", null);
+  if (savedTheme) root.dataset.theme = savedTheme;
+  document.getElementById("themeBtn").onclick = () => {
+    const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    root.dataset.theme = dark ? "light" : "dark";
+    store.set("theme", root.dataset.theme);
+  };
+
+  let DATA = null;
+  const state = {
+    course: store.get("course", null),
+    group: store.get("group", null),
+    view: store.get("view", "day"),       // day | week | stream
+    day: null,
+    weekOffset: 0,
+    onlyThisWeek: store.get("onlyThisWeek", false),
+    q: "",
+  };
+  // URL like #16-601 or #g=16-601 selects a group
+  const hash = decodeURIComponent(location.hash.replace(/^#(g=)?/, ""));
+
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const linkify = (s) => esc(s).replace(/https?:\/\/[^\s<]+/g, (u) => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
+
+  // ---- dates / weeks ----
+  function startDate() {
+    const [y, m, d] = (DATA.semesterStart || "2026-08-31").split("-").map(Number);
+    return new Date(y, m - 1, d);
+  }
+  function today() { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
+  function realWeek() {
+    const diff = Math.floor((today() - startDate()) / 86400000);
+    return Math.floor(diff / 7) + 1;
+  }
+  function todayIdx() { return (new Date().getDay() + 6) % 7; } // Mon=0
+  function viewWeek() { return realWeek() + state.weekOffset; }
+  function dateOf(week, dayIdx) {
+    const d = startDate();
+    d.setDate(d.getDate() + (week - 1) * 7 + dayIdx);
+    return d;
+  }
+  const fmtDate = (d) => `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+
+  function occursInWeek(l, w) {
+    if (l.weeks && !l.weeks.includes(w)) return false;
+    if (l.parity === "odd" && w % 2 === 0) return false;
+    if (l.parity === "even" && w % 2 === 1) return false;
+    return true;
+  }
+  function weeksLabel(l) {
+    let s = "";
+    if (l.weeks) {
+      const parts = []; let a = l.weeks[0], p = a;
+      for (const w of l.weeks.slice(1).concat([null])) {
+        if (w === p + 1) { p = w; continue; }
+        parts.push(a === p ? `${a}` : `${a}–${p}`); a = p = w;
+      }
+      s = parts.join(", ") + " нед.";
+    }
+    if (l.parity) s += (s ? " · " : "") + (l.parity === "odd" ? "нечётные" : "чётные");
+    return s;
+  }
+  function parseTime(t) {
+    const m = t.match(/(\d+):(\d+)–(\d+):(\d+)/);
+    return m ? [m[1] * 60 + +m[2], m[3] * 60 + +m[4]] : [0, 0];
+  }
+  const nowMin = () => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); };
+
+  // ---- data helpers ----
+  const course = () => DATA.courses.find((c) => c.name === state.course) || DATA.courses[0];
+  function matchesQuery(l) {
+    if (!state.q) return true;
+    return (l.text + " " + (l.teacher || "")).toLowerCase().includes(state.q.toLowerCase());
+  }
+  function lessonsFor(c, groupId, dayIdx) {
+    const day = c.days.find((d) => d.day === dayIdx);
+    if (!day) return [];
+    return day.slots.map((s, i) => ({ time: s.time, n: i + 1, l: s.lessons[groupId] })).filter((x) => x.l);
+  }
+
+  // ---- render ----
+  const app = document.getElementById("app");
+
+  function render() {
+    const c = course();
+    state.course = c.name;
+    if (!c.groups.some((g) => g.id === state.group)) state.group = c.groups[0].id;
+    store.set("course", state.course); store.set("group", state.group); store.set("view", state.view); store.set("onlyThisWeek", state.onlyThisWeek);
+    document.getElementById("wrap").classList.toggle("wide", state.view !== "day");
+
+    const w = viewWeek();
+    const rw = realWeek();
+    const parity = w % 2 ? "нечётная" : "чётная";
+    let h = "";
+    h += `<div class="weekbar">
+      <div class="week-pill">
+        <button data-act="wk" data-v="-1" aria-label="Предыдущая неделя">‹</button>
+        <b class="${w === rw ? "cur" : ""}" title="Неделя семестра">${w > 0 ? w + " неделя · " + parity : "до начала семестра"}</b>
+        <button data-act="wk" data-v="1" aria-label="Следующая неделя">›</button>
+      </div>
+      ${w !== rw ? `<button class="chip" data-act="wk0">Текущая</button>` : ""}
+      <label class="toggle"><input type="checkbox" id="only" ${state.onlyThisWeek ? "checked" : ""}><span class="sw"></span>Только пары этой недели</label>
+    </div>`;
+
+    h += `<div class="label">Курс</div><div class="scroller">` +
+      DATA.courses.map((x) => `<button class="chip" data-act="course" data-v="${esc(x.name)}" aria-pressed="${x.name === c.name}">${esc(x.name.replace(/\s+/g, " ").replace("магистранты", "Магистратура"))}</button>`).join("") + `</div>`;
+
+    h += `<div class="label">Группа</div><div class="scroller">` +
+      c.groups.map((g) => `<button class="chip" data-act="group" data-v="${esc(g.id)}" aria-pressed="${g.id === state.group}" title="${esc(g.direction)}">${esc(g.id)}</button>`).join("") + `</div>`;
+
+    const gObj = c.groups.find((g) => g.id === state.group);
+    if (gObj && gObj.direction) h += `<div class="sub" style="margin-top:8px">${esc(gObj.direction)}</div>`;
+
+    h += `<div class="tabs" role="tablist">
+      <button role="tab" data-act="view" data-v="day" aria-selected="${state.view === "day"}">День</button>
+      <button role="tab" data-act="view" data-v="week" aria-selected="${state.view === "week"}">Неделя</button>
+      <button role="tab" data-act="view" data-v="stream" aria-selected="${state.view === "stream"}">Весь поток</button>
+    </div>`;
+
+    if (state.view !== "week") {
+      h += `<div class="days">` + c.days.map((d) => {
+        const date = dateOf(w, d.day);
+        const isToday = w === rw && d.day === todayIdx();
+        const cnt = state.view === "day"
+          ? lessonsFor(c, state.group, d.day).filter((x) => occursInWeek(x.l, w)).length
+          : "";
+        return `<button class="day-btn ${isToday ? "today" : ""}" data-act="day" data-v="${d.day}" aria-pressed="${d.day === state.day}">
+          ${cnt ? `<span class="cnt">${cnt}</span>` : ""}
+          <div class="dn">${DAYS_SHORT[d.day]}</div><div class="dd">${fmtDate(date)}</div></button>`;
+      }).join("") + `</div>`;
+    }
+
+    h += `<div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+      <input id="q" type="search" placeholder="Поиск: предмет, преподаватель, аудитория" value="${esc(state.q)}"></div>`;
+
+    if (state.view === "day") h += renderDay(c, state.day, w);
+    else if (state.view === "week") h += `<div class="week-grid">` + c.days.map((d) => renderDay(c, d.day, w, true)).join("") + `</div>`;
+    else h += renderStream(c, state.day, w);
+
+    h += `<div class="legend">
+      <span><i style="background:var(--lecture)"></i>Лекция</span>
+      <span><i style="background:var(--practice)"></i>Практика</span>
+      <span><i style="background:var(--lab)"></i>Лабораторная</span>
+      <span><i style="background:var(--mixed)"></i>Лекция + практика</span>
+    </div>`;
+    const upd = new Date(DATA.updated);
+    const f = (d) => d.toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+    h += `<footer>Данные из <a href="${esc(DATA.source)}" target="_blank" rel="noopener">Google Таблицы</a>.
+      Последнее изменение расписания: ${f(upd)}. Сайт сверяется с таблицей каждый час.
+      Недели отсчитываются от ${fmtDate(startDate())}; если у пары неделя не распознана, она показывается всегда — сверяйтесь с полным текстом.</footer>`;
+
+    const qFocused = document.activeElement && document.activeElement.id === "q";
+    const caret = qFocused ? document.activeElement.selectionStart : null;
+    app.innerHTML = h;
+    if (qFocused) { const q = document.getElementById("q"); q.focus(); q.setSelectionRange(caret, caret); }
+    const sel = app.querySelector('.scroller .chip[aria-pressed="true"][data-act="group"]');
+    if (sel && sel.scrollIntoView && !render.scrolled) { sel.scrollIntoView({ block: "nearest", inline: "center" }); render.scrolled = true; }
+  }
+
+  function lessonCard(x, w, opts) {
+    const l = x.l;
+    const on = occursInWeek(l, w);
+    if (!on && state.onlyThisWeek) return "";
+    const [a, b] = x.time.split("–");
+    const tags = [];
+    if (l.type) tags.push(`<span class="tag type">${TYPE_NAMES[l.type]}</span>`);
+    if (l.room) tags.push(`<span class="tag">${ICON.room}ауд. ${esc(l.room)}</span>`);
+    if (l.teacher) tags.push(`<span class="tag">${ICON.teacher}${esc(l.teacher)}</span>`);
+    const wl = weeksLabel(l);
+    if (wl) tags.push(`<span class="tag">${ICON.weeks}${esc(wl)}</span>`);
+    if (l.shared) tags.push(`<span class="tag" title="Общая пара">${ICON.group}${l.shared.map((s) => s.replace(/^16-/, "")).join(", ")}</span>`);
+    let badge = "", cls = "", progress = "";
+    if (!on) { badge = `<span class="badge off">не в эту неделю</span>`; cls = "off"; }
+    else if (opts.status === "now") {
+      badge = `<span class="badge now">● Сейчас</span>`; cls = "now";
+      const [s, e] = parseTime(x.time); const pct = Math.min(100, Math.max(0, ((nowMin() - s) / (e - s)) * 100));
+      progress = `<div class="progress" style="width:${pct}%"></div>`;
+    } else if (opts.status === "next") { badge = `<span class="badge next">Следующая</span>`; }
+    return `<article class="lesson ${l.type || ""} ${cls}">
+      <div class="time"><b>${a}</b><span>${b}</span><span class="n">${x.n} пара</span></div>
+      <div>
+        ${badge}<h3>${esc(l.subject)}</h3>
+        <div class="tags">${tags.join("")}</div>
+        <details><summary>Как в таблице</summary><div class="raw">${linkify(l.text)}</div></details>
+      </div>${progress}</article>`;
+  }
+
+  function renderDay(c, dayIdx, w, compact) {
+    const date = dateOf(w, dayIdx);
+    const isToday = w === realWeek() && dayIdx === todayIdx();
+    const items = lessonsFor(c, state.group, dayIdx).filter((x) => matchesQuery(x.l));
+    const visible = items.filter((x) => !state.onlyThisWeek || occursInWeek(x.l, w));
+    const active = items.filter((x) => occursInWeek(x.l, w));
+    // now / next
+    let nowIdx = -1, nextIdx = -1;
+    if (isToday) {
+      const m = nowMin();
+      active.forEach((x) => {
+        const [s, e] = parseTime(x.time);
+        if (m >= s && m < e) nowIdx = x.n;
+        else if (s > m && (nextIdx === -1)) nextIdx = x.n;
+      });
+    }
+    let h = `<div class="day-head"><h2>${DAYS_FULL[dayIdx]}${isToday ? " · сегодня" : ""}</h2><span class="meta">${fmtDate(date)} · ${active.length ? active.length + " " + plural(active.length, "пара", "пары", "пар") : "пар нет"}</span></div>`;
+    if (!visible.length) {
+      return h + `<div class="empty"><div class="big">${state.q ? "🔍" : "☕"}</div>${state.q ? "Ничего не найдено" : "Свободный день"}</div>`;
+    }
+    h += `<div class="list">`;
+    let prevEnd = null;
+    for (const x of visible) {
+      const [s, e] = parseTime(x.time);
+      if (!compact && prevEnd !== null && s - prevEnd >= 60 && occursInWeek(x.l, w)) {
+        h += `<div class="break">окно ${Math.floor((s - prevEnd) / 60)} ч ${(s - prevEnd) % 60 ? ((s - prevEnd) % 60) + " мин" : ""}</div>`;
+      }
+      if (occursInWeek(x.l, w)) prevEnd = e;
+      h += lessonCard(x, w, { status: x.n === nowIdx ? "now" : nowIdx === -1 && x.n === nextIdx ? "next" : "" });
+    }
+    return h + `</div>`;
+  }
+
+  function renderStream(c, dayIdx, w) {
+    const day = c.days.find((d) => d.day === dayIdx);
+    const date = dateOf(w, dayIdx);
+    let h = `<div class="day-head"><h2>${DAYS_FULL[dayIdx]}</h2><span class="meta">${fmtDate(date)} · ${esc(c.name.trim())}, все группы</span></div>`;
+    if (!day) return h + `<div class="empty"><div class="big">☕</div>Нет занятий</div>`;
+    const groups = c.groups;
+    h += `<div class="table-wrap"><table class="stream"><colgroup><col style="width:58px">${groups.map(() => `<col style="width:${Math.max(170, 900 / groups.length)}px">`).join("")}</colgroup><thead><tr><th></th>` +
+      groups.map((g) => `<th class="${g.id === state.group ? "mine" : ""}">${esc(g.id)}<span class="dir">${esc(g.direction)}</span></th>`).join("") + `</tr></thead><tbody>`;
+    let any = false;
+    day.slots.forEach((s, si) => {
+      const row = [];
+      let filled = false;
+      for (let gi = 0; gi < groups.length; gi++) {
+        const l = s.lessons[groups[gi].id];
+        const show = l && matchesQuery(l) && (!state.onlyThisWeek || occursInWeek(l, w));
+        if (!show) { row.push(`<td><div class="cell empty-cell"></div></td>`); continue; }
+        filled = true;
+        // merge adjacent groups that share the same lesson
+        let span = 1;
+        while (gi + span < groups.length && l.shared && l.shared.includes(groups[gi + span].id) && s.lessons[groups[gi + span].id] && s.lessons[groups[gi + span].id].text === l.text) span++;
+        const mine = groups.slice(gi, gi + span).some((g) => g.id === state.group);
+        const on = occursInWeek(l, w);
+        const meta = [l.type ? TYPE_NAMES[l.type] : "", l.room ? "ауд. " + l.room : "", l.teacher || "", weeksLabel(l)].filter(Boolean).map(esc).join(" · ");
+        row.push(`<td colspan="${span}"><div class="cell ${l.type || ""} ${on ? "" : "off"} ${mine ? "mine" : ""}" title="${esc(l.text)}"><b>${esc(l.subject)}</b><div class="m">${meta}</div></div></td>`);
+        gi += span - 1;
+      }
+      if (!filled) return;
+      any = true;
+      const [a, b] = s.time.split("–");
+      h += `<tr><td class="t">${a}<span>${b}</span></td>${row.join("")}</tr>`;
+    });
+    h += `</tbody></table></div>`;
+    if (!any) h += `<div class="empty"><div class="big">${state.q ? "🔍" : "☕"}</div>${state.q ? "Ничего не найдено" : "У потока нет занятий"}</div>`;
+    return h;
+  }
+
+  function plural(n, one, few, many) {
+    const m10 = n % 10, m100 = n % 100;
+    if (m10 === 1 && m100 !== 11) return one;
+    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+    return many;
+  }
+
+  // ---- events ----
+  app.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-act]");
+    if (!b) return;
+    const v = b.dataset.v;
+    switch (b.dataset.act) {
+      case "course": state.course = v; state.group = null; render.scrolled = false; break;
+      case "group": state.group = v; history.replaceState(null, "", "#" + v); break;
+      case "view": state.view = v; break;
+      case "day": state.day = +v; break;
+      case "wk": state.weekOffset += +v; break;
+      case "wk0": state.weekOffset = 0; break;
+      default: return;
+    }
+    render();
+  });
+  app.addEventListener("change", (e) => { if (e.target.id === "only") { state.onlyThisWeek = e.target.checked; render(); } });
+  app.addEventListener("input", (e) => { if (e.target.id === "q") { state.q = e.target.value; render(); } });
+
+  // ---- load ----
+  function defaultDay() {
+    const t = todayIdx();
+    const days = course().days.map((d) => d.day);
+    if (days.includes(t)) {
+      // after the last lesson of today -> show tomorrow
+      const items = lessonsFor(course(), state.group, t).filter((x) => occursInWeek(x.l, realWeek()));
+      const last = items.length ? parseTime(items[items.length - 1].time)[1] : 0;
+      if (items.length && nowMin() > last && days.includes(t + 1)) return t + 1;
+      return t;
+    }
+    // Sunday -> Monday of next week
+    if (t === 6) state.weekOffset = 1;
+    return days[0];
+  }
+
+  async function load(first) {
+    try {
+      const r = await fetch("data/schedule.json?t=" + Date.now(), { cache: "no-store" });
+      if (!r.ok) throw new Error(r.status);
+      const data = await r.json();
+      if (!first && DATA && data.updated === DATA.updated) return;
+      DATA = data;
+      if (first) {
+        if (hash) {
+          const c = DATA.courses.find((c) => c.groups.some((g) => g.id === hash));
+          if (c) { state.course = c.name; state.group = hash; }
+        }
+        if (!DATA.courses.some((c) => c.name === state.course)) state.course = DATA.courses[0].name;
+        const c = course();
+        if (!c.groups.some((g) => g.id === state.group)) state.group = c.groups[0].id;
+        state.day = defaultDay();
+      }
+      render();
+    } catch (err) {
+      if (first) app.innerHTML = `<div class="err">Не удалось загрузить расписание (${esc(err.message)}). Попробуйте обновить страницу.</div>`;
+    }
+  }
+  load(true);
+  setInterval(() => load(false), 10 * 60 * 1000);       // fresh data
+  setInterval(() => { if (DATA && !document.hidden) render(); }, 60 * 1000); // "now" marker
+})();
+</script>
+</body>
+</html>
