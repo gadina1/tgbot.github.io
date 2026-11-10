@@ -94,6 +94,7 @@ h1 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -.02em; }
 .week-pill button:hover { background: var(--surface-2); }
 .week-pill b { padding: 0 6px; font-size: 14px; min-width: 128px; text-align: center; }
 .week-pill .cur { font-weight: 600; color: var(--accent); }
+.week-pill .wk-dates { display: block; font-size: 11px; font-weight: 500; color: var(--muted); line-height: 1.2; }
 .toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); user-select: none; cursor: pointer; }
 .toggle input { display: none; }
 .toggle .sw { width: 36px; height: 22px; border-radius: 99px; background: var(--line); position: relative; transition: .2s; }
@@ -269,7 +270,7 @@ footer a { color: inherit; }
     view: store.get("view", "day"),       // day | week | stream
     day: null,
     weekOffset: 0,
-    onlyThisWeek: store.get("onlyThisWeek", false),
+    onlyThisWeek: !store.get("showAllWeeks", false), // by default hide lessons that are not on the current week
     q: "",
   };
   // URL like #16-601 or #g=16-601 selects a group
@@ -341,7 +342,7 @@ footer a { color: inherit; }
     const c = course();
     state.course = c.name;
     if (!c.groups.some((g) => g.id === state.group)) state.group = c.groups[0].id;
-    store.set("course", state.course); store.set("group", state.group); store.set("view", state.view); store.set("onlyThisWeek", state.onlyThisWeek);
+    store.set("course", state.course); store.set("group", state.group); store.set("view", state.view); store.set("showAllWeeks", !state.onlyThisWeek);
     document.getElementById("wrap").classList.toggle("wide", state.view !== "day");
 
     const w = viewWeek();
@@ -351,11 +352,11 @@ footer a { color: inherit; }
     h += `<div class="weekbar">
       <div class="week-pill">
         <button data-act="wk" data-v="-1" aria-label="Предыдущая неделя">‹</button>
-        <b class="${w === rw ? "cur" : ""}" title="Неделя семестра">${w > 0 ? w + " неделя · " + parity : "до начала семестра"}</b>
+        <b class="${w === rw ? "cur" : ""}" title="Неделя семестра">${w > 0 ? w + " неделя · " + parity : "до начала семестра"}<small class="wk-dates">${w === rw ? "сейчас · " : ""}${fmtDate(dateOf(w, 0))} – ${fmtDate(dateOf(w, 5))}</small></b>
         <button data-act="wk" data-v="1" aria-label="Следующая неделя">›</button>
       </div>
       ${w !== rw ? `<button class="chip" data-act="wk0">Текущая</button>` : ""}
-      <label class="toggle"><input type="checkbox" id="only" ${state.onlyThisWeek ? "checked" : ""}><span class="sw"></span>Только пары этой недели</label>
+      <label class="toggle"><input type="checkbox" id="only" ${state.onlyThisWeek ? "" : "checked"}><span class="sw"></span>Показать пары других недель</label>
     </div>`;
 
     h += `<div class="label">Курс</div><div class="scroller">` +
@@ -533,7 +534,7 @@ footer a { color: inherit; }
     }
     render();
   });
-  app.addEventListener("change", (e) => { if (e.target.id === "only") { state.onlyThisWeek = e.target.checked; render(); } });
+  app.addEventListener("change", (e) => { if (e.target.id === "only") { state.onlyThisWeek = !e.target.checked; render(); } });
   app.addEventListener("input", (e) => { if (e.target.id === "q") { state.q = e.target.value; render(); } });
 
   // ---- load ----
