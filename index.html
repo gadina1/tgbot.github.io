@@ -67,7 +67,7 @@ body {
   font: 15px/1.45 Manrope, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   overflow-x: hidden;
 }
-button, input, select { font: inherit; color: inherit; }
+button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 .wrap { max-width: 980px; margin: 0 auto; padding: 0 16px 64px; }
 .wrap.wide { max-width: 1400px; }
@@ -220,6 +220,20 @@ footer a { color: inherit; }
 @media (min-width: 1100px) {
   .wrap.wide .week-grid { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* Personal subject notes */
+.note-button { margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; background: var(--surface-2); color: var(--accent); font-size: 12px; }
+.note-preview { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; color: var(--muted); }
+.note-dialog { width: min(520px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow: auto; border: 1px solid var(--line); border-radius: 16px; padding: 20px; color: var(--text); background: var(--surface); box-shadow: var(--shadow); }
+.note-dialog::backdrop { background: rgba(0,0,0,.5); }
+.note-dialog h2 { margin: 0 0 8px; font-size: 20px; overflow-wrap: anywhere; }
+.note-dialog p { color: var(--muted); font-size: 13px; }
+.note-dialog label { display: block; margin-bottom: 6px; font-weight: 600; }
+.note-dialog textarea { display: block; width: 100%; min-height: 180px; padding: 10px; resize: vertical; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+.note-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.note-actions button { padding: 8px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-2); }
+.note-actions button[type="submit"] { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.note-error { color: var(--now) !important; }
 </style>
 </head>
 <body>
@@ -236,6 +250,20 @@ footer a { color: inherit; }
   <div id="app"><div class="loading">Загружаю расписание…</div></div>
 </div>
 
+<dialog class="note-dialog" id="noteDialog" aria-labelledby="noteTitle" aria-describedby="notePrivacy">
+  <form id="noteForm">
+    <h2 id="noteTitle"></h2>
+    <p id="notePrivacy">Личная заметка ко всем занятиям этого предмета на курсе. Хранится только в этом браузере на этом устройстве. Доступна тем, кто пользуется этим браузером; удалится при очистке данных сайта.</p>
+    <label for="noteText">Заметка</label>
+    <textarea id="noteText" maxlength="10000" placeholder="Домашнее задание, вопросы, что взять на пару…" autofocus></textarea>
+    <p class="note-error" id="noteError" role="alert" hidden></p>
+    <div class="note-actions">
+      <button type="submit">Сохранить</button>
+      <button type="button" id="noteCancel">Отмена</button>
+      <button type="button" id="noteDelete">Удалить заметку</button>
+    </div>
+  </form>
+</dialog>
 <script>
 (function () {
   "use strict";
@@ -280,6 +308,53 @@ footer a { color: inherit; }
 
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const linkify = (s) => esc(s).replace(/https?:\/\/[^\s<]+/g, (u) => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
+
+
+  // One local key per subject and course, independent of lesson dates and types.
+  const notePrefix = "rasp:notes:v1:" + location.pathname + ":";
+  const noteDialog = document.getElementById("noteDialog");
+  const noteText = document.getElementById("noteText");
+  const noteError = document.getElementById("noteError");
+  let editingNoteKey = null;
+  function noteKey(subject) {
+    return JSON.stringify([state.course, String(subject || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("ru-RU")]);
+  }
+  function readNote(key) {
+    try { return localStorage.getItem(notePrefix + key) || ""; } catch (e) { return ""; }
+  }
+  function noteMarkup(l) {
+    const key = noteKey(l.subject);
+    const note = readNote(key);
+    const preview = note.length > 160 ? note.slice(0, 160) + "…" : note;
+    return `<button type="button" class="note-button" data-act="note" data-v="${esc(key)}" data-subject="${esc(l.subject)}" aria-label="Личная заметка: ${esc(l.subject)}">${note ? "✎ Изменить заметку" : "+ Заметка"}</button>${note ? `<p class="note-preview">${esc(preview)}</p>` : ""}`;
+  }
+  function openNote(button) {
+    editingNoteKey = button.dataset.v;
+    document.getElementById("noteTitle").textContent = button.dataset.subject;
+    noteText.value = readNote(editingNoteKey);
+    document.getElementById("noteDelete").hidden = !noteText.value;
+    noteError.hidden = true;
+    noteDialog.showModal();
+    noteText.focus();
+  }
+  document.getElementById("noteCancel").onclick = () => noteDialog.close();
+  function saveNote(value) {
+    try {
+      if (value.trim()) localStorage.setItem(notePrefix + editingNoteKey, value);
+      else localStorage.removeItem(notePrefix + editingNoteKey);
+    } catch (e) {
+      noteError.textContent = "Не удалось сохранить заметку. Проверьте доступ к хранилищу браузера и свободное место. Скопируйте текст, чтобы не потерять его.";
+      noteError.hidden = false;
+      return;
+    }
+    noteDialog.close();
+    render();
+  }
+  document.getElementById("noteForm").onsubmit = (e) => { e.preventDefault(); saveNote(noteText.value); };
+  document.getElementById("noteDelete").onclick = () => saveNote("");
+  window.addEventListener("storage", (e) => {
+    if (DATA && (e.key === null || e.key.startsWith(notePrefix))) render();
+  });
 
   // ---- dates / weeks ----
   function startDate() {
@@ -442,6 +517,7 @@ footer a { color: inherit; }
       <div>
         ${badge}<h3>${esc(l.subject)}</h3>
         <div class="tags">${tags.join("")}</div>
+        ${noteMarkup(l)}
         <details><summary>Как в таблице</summary><div class="raw">${linkify(l.text)}</div></details>
       </div>${progress}</article>`;
   }
@@ -503,7 +579,7 @@ footer a { color: inherit; }
         const mine = groups.slice(gi, gi + span).some((g) => g.id === state.group);
         const blocks = ls.map((l) => {
           const meta = [l.type ? TYPE_NAMES[l.type] : "", l.room ? "ауд. " + l.room : l.place || "", l.teacher || "", weeksLabel(l)].filter(Boolean).map(esc).join(" · ");
-          return `<div class="cell ${l.type || ""} ${occursInWeek(l, w) ? "" : "off"} ${mine ? "mine" : ""}" title="${esc(l.text)}"><b>${esc(l.subject)}</b><div class="m">${meta}</div></div>`;
+          return `<div class="cell ${l.type || ""} ${occursInWeek(l, w) ? "" : "off"} ${mine ? "mine" : ""}" title="${esc(l.text)}"><b>${esc(l.subject)}</b><div class="m">${meta}</div>${noteMarkup(l)}</div>`;
         }).join("");
         row.push(`<td colspan="${span}"><div class="stack">${blocks}</div></td>`);
         gi += span - 1;
@@ -531,6 +607,7 @@ footer a { color: inherit; }
     if (!b) return;
     const v = b.dataset.v;
     switch (b.dataset.act) {
+      case "note": openNote(b); return;
       case "course": state.course = v; state.group = null; render.scrolled = false; break;
       case "group": state.group = v; history.replaceState(null, "", "#" + v); break;
       case "view": state.view = v; break;
@@ -589,3 +666,4 @@ footer a { color: inherit; }
 </script>
 </body>
 </html>
+
